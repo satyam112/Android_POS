@@ -9,12 +9,11 @@
  */
 
 // API Base URL Configuration
-// Android Emulator uses 10.0.2.2 to access host machine's localhost
-// For physical device: Use your computer's local IP (e.g., http://192.168.1.XXX:3000)
-// For production: Use your actual domain (e.g., https://zaykabill.com)
-const API_BASE_URL = __DEV__ 
-  ? 'http://10.0.2.2:3000' // Android Emulator - maps to host's localhost:3000
-  : 'https://zaykabill.com'; // Production URL - update with actual domain if different
+// Default to production domain (override via setBaseUrl when needed for development)
+const API_BASE_URL = 'https://zaykabill.com';
+
+// Export API_BASE_URL for use in other files
+export { API_BASE_URL };
 
 export interface LoginCredentials {
   email: string;
@@ -46,6 +45,7 @@ export interface ApiError {
 
 class ApiService {
   private baseUrl: string;
+  public API_BASE_URL = API_BASE_URL;
 
   constructor() {
     this.baseUrl = API_BASE_URL;
@@ -608,6 +608,88 @@ class ApiService {
       return {
         success: false,
         error: error.message || 'Failed to update restaurant settings',
+      };
+    }
+  }
+
+  /**
+   * Get aggregator orders
+   */
+  async getAggregatorOrders(): Promise<{
+    success: boolean;
+    orders?: any[];
+    error?: string;
+  }> {
+    try {
+      const response = await this.request<{
+        success: boolean;
+        orders?: any[];
+      }>('/api/aggregators/orders', {
+        method: 'GET',
+      });
+      return response;
+    } catch (error: any) {
+      return {
+        success: false,
+        error: error.message || 'Failed to fetch aggregator orders',
+      };
+    }
+  }
+
+  /**
+   * Get aggregator config
+   */
+  async getAggregatorConfig(provider: 'zomato' | 'swiggy'): Promise<{
+    success: boolean;
+    config?: any;
+    error?: string;
+  }> {
+    try {
+      const response = await this.request<{
+        success: boolean;
+        config?: any;
+      }>(`/api/aggregators/config?provider=${provider}`, {
+        method: 'GET',
+      });
+      return response;
+    } catch (error: any) {
+      return {
+        success: false,
+        error: error.message || 'Failed to fetch aggregator config',
+      };
+    }
+  }
+
+  /**
+   * Save aggregator config
+   */
+  async saveAggregatorConfig(config: {
+    provider: 'zomato' | 'swiggy';
+    apiKey?: string;
+    secretKey?: string;
+    webhookUrl?: string;
+    webhookSecret?: string;
+    autoAccept?: boolean;
+    statusUpdate?: boolean;
+    enabled?: boolean;
+  }): Promise<{
+    success: boolean;
+    message?: string;
+    error?: string;
+  }> {
+    try {
+      const response = await this.request<{
+        success: boolean;
+        message?: string;
+      }>('/api/aggregators/config', {
+        method: 'POST',
+        body: JSON.stringify(config),
+      });
+      return response;
+    } catch (error: any) {
+      return {
+        success: false,
+        error: error.message || 'Failed to save aggregator config',
       };
     }
   }

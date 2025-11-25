@@ -20,6 +20,7 @@ import ReportsScreen from '../screens/ReportsScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import NotificationsScreen from '../screens/NotificationsScreen';
 import CustomerCreditsScreen from '../screens/CustomerCreditsScreen';
+import AggregatorsScreen from '../screens/AggregatorsScreen';
 import { authService } from '../services/auth';
 import { apiService } from '../services/api';
 import { notificationsService, ordersService, orderItemsService, Notification } from '../services/database-methods';
@@ -123,8 +124,14 @@ function AppNavigator({ onLogout }: AppNavigatorProps) {
     }
 
     // Mark as read immediately to prevent multiple clicks
+    const auth = await authService.getAuth();
+
     try {
-      await notificationsService.markAsRead(notification.id);
+      if (!auth.isAuthenticated || !auth.restaurant?.id) {
+        console.error('[AppNavigator] Cannot mark notification as read - missing restaurant ID');
+      } else {
+        await notificationsService.markAsRead(notification.id, auth.restaurant.id);
+      }
       // Try to mark as read on server (if online)
       try {
         await apiService.markNotificationAsRead(notification.id);
@@ -156,9 +163,7 @@ function AppNavigator({ onLogout }: AppNavigatorProps) {
       if (orderMatch) {
         const orderNumber = orderMatch[1];
         console.log(`[AppNavigator] Delivery order notification clicked, order number: ${orderNumber}`);
-        try {
-          const auth = await authService.getAuth();
-          if (auth.isAuthenticated && auth.restaurant?.id) {
+        if (auth.isAuthenticated && auth.restaurant?.id) {
             // Always set order to load and switch to Billing screen
             // BillingScreen will handle fetching from server if not found locally
             setOrderToLoad(orderNumber);
@@ -166,11 +171,8 @@ function AppNavigator({ onLogout }: AppNavigatorProps) {
             // Close dropdown
             setNotificationDropdownVisible(false);
             return;
-          } else {
-            console.error('[AppNavigator] Not authenticated or no restaurant ID');
-          }
-        } catch (error) {
-          console.error('[AppNavigator] Error handling delivery order notification:', error);
+        } else {
+          console.error('[AppNavigator] Not authenticated or no restaurant ID');
         }
       } else {
         console.log(`[AppNavigator] Could not extract order number from notification: ${notification.message}`);
@@ -198,6 +200,8 @@ function AppNavigator({ onLogout }: AppNavigatorProps) {
         return <CustomerCreditsScreen onBack={() => setCurrentScreen('Dashboard')} />;
       case 'Reports':
         return <ReportsScreen />;
+      case 'Aggregator':
+        return <AggregatorsScreen />;
       case 'Settings':
         return <SettingsScreen />;
       case 'Notifications':
@@ -213,6 +217,9 @@ function AppNavigator({ onLogout }: AppNavigatorProps) {
     }
     if (currentScreen === 'CustomerCredits') {
       return 'Customer Credits';
+    }
+    if (currentScreen === 'Aggregator') {
+      return 'Aggregator';
     }
     return currentScreen;
   };

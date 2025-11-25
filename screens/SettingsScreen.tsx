@@ -30,6 +30,7 @@ import TaxesAndChargesScreen from './settings/TaxesAndChargesScreen';
 import AccountScreen from './settings/AccountScreen';
 import GoOnlineScreen from './settings/GoOnlineScreen';
 import PrinterSettingsScreen from './settings/PrinterSettingsScreen';
+import AggregatorSettingsScreen from './settings/AggregatorSettingsScreen';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -76,6 +77,12 @@ const settingsCards: SettingsCard[] = [
     title: 'Printer Settings',
     icon: '🖨️',
     description: 'Connect and configure Bluetooth printer for KOT and Bill printing',
+  },
+  {
+    id: 'aggregator',
+    title: 'Aggregator Settings',
+    icon: '🍕',
+    description: 'Configure Zomato and Swiggy API keys, webhooks, and auto-accept settings',
   },
   {
     id: 'security',
@@ -197,6 +204,10 @@ const SettingsScreen: React.FC = () => {
 
   if (currentSection === 'printer') {
     return <PrinterSettingsScreen onBack={handleBackToDashboard} />;
+  }
+
+  if (currentSection === 'aggregator') {
+    return <AggregatorSettingsScreen onBack={handleBackToDashboard} />;
   }
 
   // Show main settings dashboard

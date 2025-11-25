@@ -52,6 +52,10 @@ const GoOnlineScreen: React.FC<GoOnlineScreenProps> = ({ onBack }) => {
     loadRestaurantData();
   }, []);
 
+  const domainPreview = subdomain.trim()
+    ? `https://${subdomain.trim().toLowerCase()}.zaykabill.com`
+    : 'https://your-subdomain.zaykabill.com';
+
   const loadRestaurantData = async () => {
     try {
       setLoading(true);
@@ -321,10 +325,12 @@ const GoOnlineScreen: React.FC<GoOnlineScreenProps> = ({ onBack }) => {
       return;
     }
 
+    const normalizedSubdomain = subdomain.trim().toLowerCase();
+
     // Validate subdomain if provided
-    if (subdomain.trim()) {
+    if (normalizedSubdomain) {
       const subdomainRegex = /^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/;
-      if (!subdomainRegex.test(subdomain.trim().toLowerCase())) {
+      if (!subdomainRegex.test(normalizedSubdomain)) {
         Alert.alert('Error', 'Subdomain can only contain lowercase letters, numbers, and hyphens. It cannot start or end with a hyphen.');
         return;
       }
@@ -335,7 +341,7 @@ const GoOnlineScreen: React.FC<GoOnlineScreenProps> = ({ onBack }) => {
 
       // Prepare settings data
       const settingsData = {
-        subdomain: subdomain.trim().toLowerCase(),
+        subdomain: normalizedSubdomain ? normalizedSubdomain : null,
         bannerImage: bannerImage.trim(),
         restaurantImages: restaurantImages.filter(img => img.trim() !== ''),
         tagline: tagline.trim(),
@@ -347,32 +353,32 @@ const GoOnlineScreen: React.FC<GoOnlineScreenProps> = ({ onBack }) => {
         },
       };
 
-      // Save to local database first (for offline access)
-      try {
-        await restaurantSettingsService.save(restaurantId, settingsData);
-        console.log('Go Online settings saved to local database');
-      } catch (error) {
-        console.error('Error saving to local database:', error);
-      }
-
-      // Save to server
+      // Save to server first to ensure validation (especially for subdomain uniqueness)
       try {
         const response = await apiService.updateRestaurantSettings(restaurantId, settingsData);
 
         if (response.success) {
-          // Update local database with server response (in case server modified data)
           await restaurantSettingsService.save(restaurantId, settingsData);
           Alert.alert('Success', 'Go Online settings saved successfully!');
         } else {
-          Alert.alert('Error', response.message || 'Failed to save settings to server. Data saved locally.');
+          Alert.alert('Error', response.error || response.message || 'Failed to save settings to server.');
+          await loadRestaurantData();
+          return;
         }
       } catch (error: any) {
-        // Even if server save fails, data is saved locally
+        // Offline fallback: store locally so the user doesn't lose changes
+        try {
+          await restaurantSettingsService.save(restaurantId, settingsData);
+        } catch (localError) {
+          console.error('Error saving to local database:', localError);
+        }
+
         Alert.alert(
           'Warning',
           'Settings saved locally but failed to sync with server. Please check your internet connection and sync later.'
         );
       }
+      return;
     } catch (error: any) {
       console.error('Error saving Go Online settings:', error);
       Alert.alert('Error', error.message || 'Failed to save settings. Please check your internet connection.');
@@ -426,7 +432,7 @@ const GoOnlineScreen: React.FC<GoOnlineScreenProps> = ({ onBack }) => {
             maxLength={50}
           />
           <Text style={styles.helperText}>
-            Your restaurant will be accessible at: {subdomain.trim() || 'your-subdomain'}.zaykabill.com
+            Your restaurant will be accessible at: {domainPreview}
           </Text>
         </View>
 

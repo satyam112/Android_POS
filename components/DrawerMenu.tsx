@@ -213,6 +213,7 @@ const DrawerMenu: React.FC<DrawerMenuProps> = ({
     { id: 'Expenses', label: 'Expenses', icon: '💰' },
     { id: 'CustomerCredits', label: 'Customer Credits', icon: '💵' },
     { id: 'Reports', label: 'Reports', icon: '📈' },
+    { id: 'Aggregator', label: 'Aggregator', icon: '🌐' },
     { id: 'Settings', label: 'Settings', icon: '⚙️' },
   ];
 
