@@ -4,6 +4,8 @@
     <style name="AppTheme" parent="Theme.AppCompat.DayNight.NoActionBar">
         <!-- Customize your theme here. -->
         <item name="android:editTextBackground">@drawable/rn_edit_text_material</item>
+        <!-- Set window background to prevent black strip on MIUI devices -->
+        <item name="android:windowBackground">@android:color/white</item>
     </style>
 
 </resources>
