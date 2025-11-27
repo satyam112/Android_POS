@@ -10,6 +10,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { StyleSheet, StatusBar } from 'react-native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import SplashScreen from './components/SplashScreen';
 import LoginScreen from './components/LoginScreen';
 import GetDemoScreen from './components/GetDemoScreen';
@@ -97,37 +98,53 @@ function App(): React.JSX.Element {
 
   // Show splash screen first
   if (showSplash) {
-    return <SplashScreen onAnimationComplete={handleSplashComplete} />;
+    return (
+      <SafeAreaProvider>
+        <SplashScreen onAnimationComplete={handleSplashComplete} />
+      </SafeAreaProvider>
+    );
   }
 
   // Check authentication state (only if splash is done)
   if (isCheckingAuth) {
     // Show loading state while checking auth
-    return null; // Or you can show a loading indicator
+    return (
+      <SafeAreaProvider>
+        {null}
+      </SafeAreaProvider>
+    );
   }
 
   // Show demo screen if requested
   if (showDemo) {
     return (
-      <GetDemoScreen
-        onRequestDemo={handleDemoRequest}
-        onBack={handleBackFromDemo}
-      />
+      <SafeAreaProvider>
+        <GetDemoScreen
+          onRequestDemo={handleDemoRequest}
+          onBack={handleBackFromDemo}
+        />
+      </SafeAreaProvider>
     );
   }
 
   // Show login screen if not authenticated
   if (!isLoggedIn) {
-  return (
-      <LoginScreen
-        onLogin={handleLogin}
-        onGetDemo={handleGetDemoClick}
-      />
-  );
-}
+    return (
+      <SafeAreaProvider>
+        <LoginScreen
+          onLogin={handleLogin}
+          onGetDemo={handleGetDemoClick}
+        />
+      </SafeAreaProvider>
+    );
+  }
 
   // Show main app with drawer navigation if authenticated
-  return <AppNavigator onLogout={handleLogout} />;
+  return (
+    <SafeAreaProvider>
+      <AppNavigator onLogout={handleLogout} />
+    </SafeAreaProvider>
+  );
 }
 
 

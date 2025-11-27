@@ -235,7 +235,7 @@ const ExpensesScreen: React.FC = () => {
       </View>
 
       {/* Expenses List */}
-      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+      <ScrollView style={styles.scrollView} contentContainerStyle={[styles.scrollContent, { paddingBottom: 100 + insets.bottom }]}>
         {expenses.length === 0 ? (
           <View style={styles.emptyContainer}>
             <Text style={styles.emptyIcon}>💰</Text>
@@ -409,7 +409,7 @@ const ExpensesScreen: React.FC = () => {
             </ScrollView>
 
             {/* Modal Actions */}
-            <View style={styles.modalActions}>
+            <View style={[styles.modalActions, { paddingBottom: 16 + insets.bottom }]}>
               <TouchableOpacity
                 style={[styles.modalButton, styles.modalButtonCancel]}
                 onPress={() => {
