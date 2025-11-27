@@ -163,7 +163,7 @@ function AppNavigator({ onLogout }: AppNavigatorProps) {
       if (orderMatch) {
         const orderNumber = orderMatch[1];
         console.log(`[AppNavigator] Delivery order notification clicked, order number: ${orderNumber}`);
-        if (auth.isAuthenticated && auth.restaurant?.id) {
+          if (auth.isAuthenticated && auth.restaurant?.id) {
             // Always set order to load and switch to Billing screen
             // BillingScreen will handle fetching from server if not found locally
             setOrderToLoad(orderNumber);
@@ -171,8 +171,8 @@ function AppNavigator({ onLogout }: AppNavigatorProps) {
             // Close dropdown
             setNotificationDropdownVisible(false);
             return;
-        } else {
-          console.error('[AppNavigator] Not authenticated or no restaurant ID');
+          } else {
+            console.error('[AppNavigator] Not authenticated or no restaurant ID');
         }
       } else {
         console.log(`[AppNavigator] Could not extract order number from notification: ${notification.message}`);

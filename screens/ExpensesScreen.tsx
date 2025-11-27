@@ -15,6 +15,7 @@ import {
   TextInput,
   Modal,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { authService } from '../services/auth';
 import { expensesService, Expense } from '../services/database-methods';
 
@@ -30,6 +31,7 @@ const EXPENSE_CATEGORIES = [
 ];
 
 const ExpensesScreen: React.FC = () => {
+  const insets = useSafeAreaInsets();
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(true);
   const [restaurantId, setRestaurantId] = useState<string | null>(null);
@@ -438,7 +440,7 @@ const ExpensesScreen: React.FC = () => {
 
       {/* Floating Add Expense Button */}
       <TouchableOpacity
-        style={styles.fab}
+        style={[styles.fab, { bottom: 24 + insets.bottom }]}
         onPress={handleAddExpense}
         activeOpacity={0.8}
       >

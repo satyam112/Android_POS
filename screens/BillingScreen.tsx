@@ -28,6 +28,7 @@ import {
   Modal,
   Dimensions,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   scale,
   verticalScale,
@@ -85,6 +86,7 @@ interface BillingScreenProps {
 }
 
 const BillingScreen: React.FC<BillingScreenProps> = ({ orderToLoad, onOrderLoaded }) => {
+  const insets = useSafeAreaInsets();
   const [activeTab, setActiveTab] = useState<TabType>('Menu');
   const [restaurantId, setRestaurantId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -1511,7 +1513,7 @@ const BillingScreen: React.FC<BillingScreenProps> = ({ orderToLoad, onOrderLoade
         {/* Floating Cart Button */}
         {getCartItemCount() > 0 && (
           <TouchableOpacity
-            style={styles.floatingCartButton}
+            style={[styles.floatingCartButton, { bottom: 24 + insets.bottom }]}
             onPress={() => setActiveTab('Cart')}
             activeOpacity={0.8}
           >
@@ -1939,7 +1941,7 @@ const BillingScreen: React.FC<BillingScreenProps> = ({ orderToLoad, onOrderLoade
         </ScrollView>
 
         {/* Action Buttons */}
-        <View style={styles.cartActions}>
+        <View style={[styles.cartActions, { paddingBottom: 16 + insets.bottom }]}>
           <TouchableOpacity
             style={[styles.actionButton, styles.quickBillButton]}
             onPress={handleQuickBill}
