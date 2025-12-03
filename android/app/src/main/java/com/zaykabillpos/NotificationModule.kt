@@ -75,8 +75,20 @@ class NotificationModule(reactContext: ReactApplicationContext) : ReactContextBa
       )
 
       // Build notification
+      // Use custom notification icon, fallback to launcher icon if custom icon not found
+      val smallIconResId = try {
+        val resId = context.resources.getIdentifier(
+          "ic_notification",
+          "drawable",
+          context.packageName
+        )
+        if (resId != 0) resId else context.applicationInfo.icon
+      } catch (e: Exception) {
+        context.applicationInfo.icon
+      }
+      
       val notificationBuilder = NotificationCompat.Builder(context, CHANNEL_ID)
-        .setSmallIcon(android.R.drawable.ic_dialog_info)
+        .setSmallIcon(smallIconResId)
         .setContentTitle(title)
         .setContentText(message)
         .setStyle(NotificationCompat.BigTextStyle().bigText(message))
