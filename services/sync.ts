@@ -477,7 +477,7 @@ class SyncService {
       // Upload Credit Transactions - Sync ALL credit transactions
       let allCreditTransactions: CreditTransaction[] = [];
       for (const customer of localCustomers) {
-        const transactions = await creditTransactionsService.getAll(customer.id);
+        const transactions = await creditTransactionsService.getAll(customer.id, restaurantId);
         allCreditTransactions = allCreditTransactions.concat(transactions);
       }
       // Don't filter by lastSyncTimestamp for credit transactions - sync everything
@@ -945,7 +945,12 @@ class SyncService {
             const exists = existingTables.find((t) => t.id === item.id);
             if (exists) {
               console.log(`Updating existing table: ${item.id}`);
-              await tablesService.update(item.id, item.name || `Table ${item.number}`, item.capacity || 4);
+              await tablesService.update(
+                item.id,
+                item.name || `Table ${item.number}`,
+                item.capacity || 4,
+                restaurantId
+              );
             } else {
               console.log(`Adding new table: ${item.id}`);
               // Use existing ID from server to maintain consistency
@@ -978,7 +983,7 @@ class SyncService {
           const existingCategories = await menuCategoriesService.getAll(restaurantId);
           const exists = existingCategories.find((c) => c.id === item.id);
           if (exists) {
-            await menuCategoriesService.update(item.id, item.name, item.description);
+            await menuCategoriesService.update(item.id, item.name, item.description, restaurantId);
           } else {
             await databaseService.initialize();
             const db = getDatabase();
@@ -1013,7 +1018,8 @@ class SyncService {
                 typeof item.price === 'number' ? item.price : parseFloat(item.price) || 0,
                 item.categoryId,
                 item.description,
-                item.icon || item.imageUrl
+                item.icon || item.imageUrl,
+                restaurantId
               );
             } else {
               console.log(`Adding new menu item: ${item.id}`);
@@ -1129,13 +1135,53 @@ class SyncService {
             item.createdAt || now,
             item.updatedAt || item.lastUpdated || now,
           ]);
+
+          // CRITICAL: Save order items if they exist in the server response
+          if (item.orderItems && Array.isArray(item.orderItems) && item.orderItems.length > 0) {
+            console.log(`[SYNC] Saving ${item.orderItems.length} order items for order ${item.orderNumber}...`);
+            try {
+              // Map and validate order items - filter out items with invalid menuItemId
+              const orderItemsToSave = item.orderItems
+                .map((orderItem: any) => {
+                  const menuItemId = orderItem.menuItemId || orderItem.menuItem?.id || '';
+                  // Validate menuItemId is not empty
+                  if (!menuItemId || menuItemId.trim() === '') {
+                    console.warn('[SYNC] Skipping order item with invalid menuItemId:', orderItem);
+                    return null;
+                  }
+                  return {
+                    orderId: item.id,
+                    menuItemId: menuItemId,
+                    itemName: orderItem.itemName || orderItem.menuItem?.name || 'Unknown Item',
+                    quantity: orderItem.quantity || 1,
+                    unitPrice: typeof orderItem.unitPrice === 'object' ? parseFloat(orderItem.unitPrice.toString()) : (orderItem.unitPrice || 0),
+                    totalPrice: typeof orderItem.totalPrice === 'object' ? parseFloat(orderItem.totalPrice.toString()) : (orderItem.totalPrice || (orderItem.unitPrice || 0) * (orderItem.quantity || 1)),
+                    kotNumber: orderItem.kotNumber || 1,
+                    specialInstructions: orderItem.specialInstructions || undefined,
+                  };
+                })
+                .filter((orderItem: any) => orderItem !== null); // Remove null items
+              
+              if (orderItemsToSave.length > 0) {
+                await orderItemsService.save(orderItemsToSave);
+                console.log(`[SYNC] Successfully saved ${orderItemsToSave.length} order items for order ${item.orderNumber}`);
+              } else {
+                console.warn(`[SYNC] No valid order items to save for order ${item.orderNumber}`);
+              }
+            } catch (error: any) {
+              console.error(`[SYNC] Error saving order items for order ${item.orderNumber}:`, error);
+              // Don't throw - continue with other orders even if items fail
+            }
+          } else {
+            console.log(`[SYNC] No order items found in server response for order ${item.orderNumber}`);
+          }
           break;
         }
         case 'taxes': {
           const existingTaxes = await taxesService.getAll(restaurantId);
           const exists = existingTaxes.find((t) => t.id === item.id);
           if (exists) {
-            await taxesService.update(item.id, item.name, item.percentage);
+            await taxesService.update(item.id, item.name, item.percentage, restaurantId);
           } else {
             await databaseService.initialize();
             const db = getDatabase();
@@ -1160,7 +1206,7 @@ class SyncService {
           const existingCharges = await additionalChargesService.getAll(restaurantId);
           const exists = existingCharges.find((c) => c.id === item.id);
           if (exists) {
-            await additionalChargesService.update(item.id, item.name, item.percentage);
+            await additionalChargesService.update(item.id, item.name, item.percentage, restaurantId);
           } else {
             await databaseService.initialize();
             const db = getDatabase();

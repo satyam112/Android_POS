@@ -107,10 +107,16 @@ const CustomerCreditsScreen: React.FC<CustomerCreditsScreenProps> = ({ onBack })
 
     try {
       setSaving(true);
+      if (!restaurantId) {
+        Alert.alert('Error', 'Restaurant not found. Please login again');
+        return;
+      }
+
       const updatedCustomer = await customersService.updateCredit(
         selectedCustomer.id,
         amountValue,
-        'add'
+        'add',
+        restaurantId
       );
 
       // Create credit transaction
@@ -163,10 +169,16 @@ const CustomerCreditsScreen: React.FC<CustomerCreditsScreenProps> = ({ onBack })
 
     try {
       setSaving(true);
+      if (!restaurantId) {
+        Alert.alert('Error', 'Restaurant not found. Please login again');
+        return;
+      }
+
       const updatedCustomer = await customersService.updateCredit(
         selectedCustomer.id,
         amountValue,
-        'subtract'
+        'subtract',
+        restaurantId
       );
 
       // Create payment transaction
@@ -196,7 +208,12 @@ const CustomerCreditsScreen: React.FC<CustomerCreditsScreenProps> = ({ onBack })
   const handleView = async (customer: Customer) => {
     setSelectedCustomer(customer);
     try {
-      const history = await creditTransactionsService.getAll(customer.id);
+      if (!restaurantId) {
+        Alert.alert('Error', 'Restaurant not found. Please login again');
+        return;
+      }
+
+      const history = await creditTransactionsService.getAll(customer.id, restaurantId);
       setCreditHistory(history);
       setShowViewDialog(true);
     } catch (error) {
@@ -216,7 +233,12 @@ const CustomerCreditsScreen: React.FC<CustomerCreditsScreenProps> = ({ onBack })
 
     try {
       setSaving(true);
-      await customersService.delete(selectedCustomer.id);
+      if (!restaurantId) {
+        Alert.alert('Error', 'Restaurant not found. Please login again');
+        return;
+      }
+
+      await customersService.delete(selectedCustomer.id, restaurantId);
       Alert.alert('Success', 'Customer deleted successfully');
       setShowDeleteDialog(false);
       setSelectedCustomer(null);

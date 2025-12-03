@@ -123,7 +123,11 @@ const TaxesAndChargesScreen: React.FC<TaxesAndChargesScreenProps> = ({ onBack })
           style: 'destructive',
           onPress: async () => {
             try {
-              await taxesService.delete(tax.id);
+              if (!restaurantId) {
+                Alert.alert('Error', 'Restaurant ID not found');
+                return;
+              }
+              await taxesService.delete(tax.id, restaurantId);
               await loadData();
               Alert.alert('Success', 'Tax deleted successfully');
             } catch (error) {
@@ -157,7 +161,7 @@ const TaxesAndChargesScreen: React.FC<TaxesAndChargesScreenProps> = ({ onBack })
       setSaving(true);
 
       if (editingTax) {
-        await taxesService.update(editingTax.id, taxName.trim(), percentage);
+        await taxesService.update(editingTax.id, taxName.trim(), percentage, restaurantId);
         Alert.alert('Success', 'Tax updated successfully');
       } else {
         await taxesService.add(restaurantId, taxName.trim(), percentage);
@@ -204,7 +208,11 @@ const TaxesAndChargesScreen: React.FC<TaxesAndChargesScreenProps> = ({ onBack })
           style: 'destructive',
           onPress: async () => {
             try {
-              await additionalChargesService.delete(charge.id);
+              if (!restaurantId) {
+                Alert.alert('Error', 'Restaurant ID not found');
+                return;
+              }
+              await additionalChargesService.delete(charge.id, restaurantId);
               await loadData();
               Alert.alert('Success', 'Charge deleted successfully');
             } catch (error) {
@@ -238,7 +246,12 @@ const TaxesAndChargesScreen: React.FC<TaxesAndChargesScreenProps> = ({ onBack })
       setSaving(true);
 
       if (editingCharge) {
-        await additionalChargesService.update(editingCharge.id, chargeName.trim(), percentage);
+        await additionalChargesService.update(
+          editingCharge.id,
+          chargeName.trim(),
+          percentage,
+          restaurantId
+        );
         Alert.alert('Success', 'Charge updated successfully');
       } else {
         await additionalChargesService.add(restaurantId, chargeName.trim(), percentage);

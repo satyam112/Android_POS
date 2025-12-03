@@ -176,7 +176,7 @@ const ReportsScreen: React.FC = () => {
       // Load order items for all orders (for GST reports)
       const itemsMap = new Map<string, OrderItem[]>();
       for (const order of ordersData) {
-        const items = await orderItemsService.getByOrderId(order.id);
+        const items = await orderItemsService.getByOrderId(order.id, rid);
         itemsMap.set(order.id, items);
       }
       setOrderItems(itemsMap);

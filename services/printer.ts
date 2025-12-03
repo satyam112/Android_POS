@@ -76,6 +76,11 @@ export interface BillData {
   total: number;
   paymentMethod: string;
   upiId?: string; // UPI ID for dynamic QR code generation
+  // Corporate Billing fields
+  businessName?: string;
+  businessAddress?: string;
+  corporateGstNumber?: string;
+  billDate?: string;
 }
 
 export interface KOTData {
@@ -446,16 +451,27 @@ class PrinterService {
     commands += ESC_POS_COMMANDS.LEFT;
     commands += ESC_POS_COMMANDS.BOLD_ON;
     commands += `Bill #: ${billData.orderNumber}\n`;
-    commands += `Date & Time: ${billData.timestamp}\n`;
     
-    if (billData.table) {
-      commands += `Table: ${billData.table}\n`;
-    }
-    
-    commands += `Order Type: ${billData.orderType}\n`;
-    
-    if (billData.customer) {
-      commands += `Customer: ${billData.customer}\n`;
+    // Corporate Billing fields
+    if (billData.orderType === 'Corporate Billing' && billData.businessName) {
+      commands += `Bill Date: ${billData.timestamp}\n`;
+      commands += `Business Name: ${billData.businessName}\n`;
+      if (billData.businessAddress) {
+        commands += `Business Address: ${billData.businessAddress}\n`;
+      }
+      if (billData.corporateGstNumber) {
+        commands += `GST Number: ${billData.corporateGstNumber}\n`;
+      }
+      commands += `Order Type: ${billData.orderType}\n`;
+    } else {
+      commands += `Date & Time: ${billData.timestamp}\n`;
+      if (billData.table) {
+        commands += `Table: ${billData.table}\n`;
+      }
+      commands += `Order Type: ${billData.orderType}\n`;
+      if (billData.customer) {
+        commands += `Customer: ${billData.customer}\n`;
+      }
     }
     
     commands += ESC_POS_COMMANDS.BOLD_OFF;

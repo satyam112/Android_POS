@@ -91,7 +91,7 @@ export interface Order {
   orderNumber: string;
   customerId?: string;
   tableId?: string;
-  orderType: 'Counter' | 'Dine-In' | 'Takeaway' | 'Delivery';
+  orderType: 'Counter' | 'Dine-In' | 'Takeaway' | 'Delivery' | 'Corporate Billing';
   status: 'PENDING' | 'CONFIRMED' | 'PREPARING' | 'READY' | 'SERVED' | 'CANCELLED';
   subtotal: number;
   taxAmount: number;
@@ -102,6 +102,7 @@ export interface Order {
   paymentMethod?: string;
   kotSequence: number;
   isOpen: boolean;
+  notes?: string;
   createdAt: string;
   lastUpdated: string;
 }
@@ -860,7 +861,7 @@ export const ordersService = {
         orderNumber: row.orderNumber,
         customerId: row.customerId || undefined,
         tableId: row.tableId || undefined,
-        orderType: (row.orderType || 'Counter') as 'Counter' | 'Dine-In' | 'Takeaway' | 'Delivery',
+        orderType: (row.orderType || 'Counter') as 'Counter' | 'Dine-In' | 'Takeaway' | 'Delivery' | 'Corporate Billing',
         status: (row.status || 'PENDING') as 'PENDING' | 'CONFIRMED' | 'PREPARING' | 'READY' | 'SERVED' | 'CANCELLED',
         subtotal: row.subtotal || 0,
         taxAmount: row.taxAmount || 0,
@@ -871,6 +872,7 @@ export const ordersService = {
         paymentMethod: row.paymentMethod || undefined,
         kotSequence: row.kotSequence || 1,
         isOpen: row.isOpen === 1,
+        notes: row.notes || undefined,
         createdAt: row.createdAt,
         lastUpdated: row.lastUpdated,
       }));
@@ -909,7 +911,7 @@ export const ordersService = {
           orderNumber: row.orderNumber,
           customerId: row.customerId || undefined,
           tableId: row.tableId || undefined,
-          orderType: (row.orderType || 'Counter') as 'Counter' | 'Dine-In' | 'Takeaway' | 'Delivery',
+          orderType: (row.orderType || 'Counter') as 'Counter' | 'Dine-In' | 'Takeaway' | 'Delivery' | 'Corporate Billing',
           status: (row.status || 'PENDING') as 'PENDING' | 'CONFIRMED' | 'PREPARING' | 'READY' | 'SERVED' | 'CANCELLED',
           subtotal: row.subtotal || 0,
           taxAmount: row.taxAmount || 0,
@@ -920,6 +922,7 @@ export const ordersService = {
           paymentMethod: row.paymentMethod || undefined,
           kotSequence: row.kotSequence || 1,
           isOpen: row.isOpen === 1,
+          notes: row.notes || undefined,
           createdAt: row.createdAt,
           lastUpdated: row.lastUpdated,
         };
@@ -944,7 +947,7 @@ export const ordersService = {
           orderNumber: row.orderNumber,
           customerId: row.customerId || undefined,
           tableId: row.tableId || undefined,
-          orderType: (row.orderType || 'Counter') as 'Counter' | 'Dine-In' | 'Takeaway' | 'Delivery',
+          orderType: (row.orderType || 'Counter') as 'Counter' | 'Dine-In' | 'Takeaway' | 'Delivery' | 'Corporate Billing',
           status: (row.status || 'PENDING') as 'PENDING' | 'CONFIRMED' | 'PREPARING' | 'READY' | 'SERVED' | 'CANCELLED',
           subtotal: row.subtotal || 0,
           taxAmount: row.taxAmount || 0,
@@ -955,6 +958,7 @@ export const ordersService = {
           paymentMethod: row.paymentMethod || undefined,
           kotSequence: row.kotSequence || 1,
           isOpen: row.isOpen === 1,
+          notes: row.notes || undefined,
           createdAt: row.createdAt,
           lastUpdated: row.lastUpdated,
         };
@@ -989,8 +993,8 @@ export const ordersService = {
       INSERT OR REPLACE INTO orders (
         id, restaurantId, orderNumber, customerId, tableId, orderType, status,
         subtotal, taxAmount, discountAmount, discountPercent, totalAmount,
-        paymentStatus, paymentMethod, kotSequence, isOpen, createdAt, lastUpdated
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+        paymentStatus, paymentMethod, kotSequence, isOpen, notes, createdAt, lastUpdated
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
     `;
     db.execute(query, [
       orderData.id,
@@ -1009,6 +1013,7 @@ export const ordersService = {
       orderData.paymentMethod || null,
       orderData.kotSequence,
       orderData.isOpen ? 1 : 0,
+      orderData.notes || null,
       orderData.createdAt,
       orderData.lastUpdated,
     ]);
@@ -1083,7 +1088,7 @@ export const ordersService = {
         orderNumber: row.orderNumber,
         customerId: row.customerId || undefined,
         tableId: row.tableId || undefined,
-        orderType: (row.orderType || 'Counter') as 'Counter' | 'Dine-In' | 'Takeaway' | 'Delivery',
+        orderType: (row.orderType || 'Counter') as 'Counter' | 'Dine-In' | 'Takeaway' | 'Delivery' | 'Corporate Billing',
         status: (row.status || 'PENDING') as 'PENDING' | 'CONFIRMED' | 'PREPARING' | 'READY' | 'SERVED' | 'CANCELLED',
         subtotal: row.subtotal || 0,
         taxAmount: row.taxAmount || 0,
@@ -1124,7 +1129,7 @@ export const ordersService = {
         orderNumber: row.orderNumber,
         customerId: row.customerId || undefined,
         tableId: row.tableId || undefined,
-        orderType: (row.orderType || 'Counter') as 'Counter' | 'Dine-In' | 'Takeaway' | 'Delivery',
+        orderType: (row.orderType || 'Counter') as 'Counter' | 'Dine-In' | 'Takeaway' | 'Delivery' | 'Corporate Billing',
         status: (row.status || 'PENDING') as 'PENDING' | 'CONFIRMED' | 'PREPARING' | 'READY' | 'SERVED' | 'CANCELLED',
         subtotal: row.subtotal || 0,
         taxAmount: row.taxAmount || 0,
@@ -1157,7 +1162,7 @@ export const ordersService = {
         orderNumber: row.orderNumber,
         customerId: row.customerId || undefined,
         tableId: row.tableId || undefined,
-        orderType: (row.orderType || 'Counter') as 'Counter' | 'Dine-In' | 'Takeaway' | 'Delivery',
+        orderType: (row.orderType || 'Counter') as 'Counter' | 'Dine-In' | 'Takeaway' | 'Delivery' | 'Corporate Billing',
         status: (row.status || 'PENDING') as 'PENDING' | 'CONFIRMED' | 'PREPARING' | 'READY' | 'SERVED' | 'CANCELLED',
         subtotal: row.subtotal || 0,
         taxAmount: row.taxAmount || 0,

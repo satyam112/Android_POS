@@ -129,7 +129,11 @@ const MenuManagementScreen: React.FC<MenuManagementScreenProps> = ({ onBack }) =
           style: 'destructive',
           onPress: async () => {
             try {
-              await menuCategoriesService.delete(category.id);
+              if (!restaurantId) {
+                Alert.alert('Error', 'Restaurant ID not found');
+                return;
+              }
+              await menuCategoriesService.delete(category.id, restaurantId);
               await loadData();
               Alert.alert('Success', 'Category deleted successfully');
             } catch (error) {
@@ -160,7 +164,8 @@ const MenuManagementScreen: React.FC<MenuManagementScreenProps> = ({ onBack }) =
         await menuCategoriesService.update(
           editingCategory.id,
           categoryName.trim(),
-          categoryDescription.trim() || undefined
+          categoryDescription.trim() || undefined,
+          restaurantId
         );
         Alert.alert('Success', 'Category updated successfully');
       } else {
@@ -223,7 +228,11 @@ const MenuManagementScreen: React.FC<MenuManagementScreenProps> = ({ onBack }) =
           style: 'destructive',
           onPress: async () => {
             try {
-              await menuItemsService.delete(item.id);
+              if (!restaurantId) {
+                Alert.alert('Error', 'Restaurant ID not found');
+                return;
+              }
+              await menuItemsService.delete(item.id, restaurantId);
               await loadData();
               Alert.alert('Success', 'Menu item deleted successfully');
             } catch (error) {
@@ -268,7 +277,8 @@ const MenuManagementScreen: React.FC<MenuManagementScreenProps> = ({ onBack }) =
           price,
           itemCategoryId,
           itemDescription.trim() || undefined,
-          itemIcon
+          itemIcon,
+          restaurantId
         );
         Alert.alert('Success', 'Menu item updated successfully');
       } else {

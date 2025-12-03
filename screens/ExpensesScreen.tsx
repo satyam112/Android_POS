@@ -152,7 +152,11 @@ const ExpensesScreen: React.FC = () => {
           style: 'destructive',
           onPress: async () => {
             try {
-              await expensesService.delete(expenseId);
+              if (!restaurantId) {
+                Alert.alert('Error', 'Restaurant ID not found');
+                return;
+              }
+              await expensesService.delete(expenseId, restaurantId);
               Alert.alert('Success', 'Expense deleted successfully');
               await loadData();
             } catch (error) {

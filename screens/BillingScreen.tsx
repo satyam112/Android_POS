@@ -69,7 +69,7 @@ import { databaseService, getDatabase } from '../services/database';
 import { printerService, BillData, KOTData } from '../services/printer';
 
 type TabType = 'Menu' | 'Cart' | 'View Orders';
-type OrderType = 'Counter' | 'Dine-In' | 'Takeaway' | 'Delivery';
+type OrderType = 'Counter' | 'Dine-In' | 'Takeaway' | 'Delivery' | 'Corporate Billing';
 type PaymentMode = 'Cash' | 'Credit';
 
 interface CartItem {
@@ -114,6 +114,12 @@ const BillingScreen: React.FC<BillingScreenProps> = ({ orderToLoad, onOrderLoade
   const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
   const [showTableDropdown, setShowTableDropdown] = useState(false);
   const [showAddCustomerDialog, setShowAddCustomerDialog] = useState(false);
+  
+  // Corporate Billing fields
+  const [businessName, setBusinessName] = useState('');
+  const [businessAddress, setBusinessAddress] = useState('');
+  const [corporateGstNumber, setCorporateGstNumber] = useState('');
+  const [billDate, setBillDate] = useState('');
 
   // Additional data for cart
   const [tables, setTables] = useState<Table[]>([]);
@@ -224,9 +230,19 @@ const BillingScreen: React.FC<BillingScreenProps> = ({ orderToLoad, onOrderLoade
       let order = await ordersService.getByOrderNumber(restaurantId, orderNumber);
       let serverOrderData: any = null;
       
-      // If not found locally, try to fetch from server
-      if (!order) {
-        console.log(`[BillingScreen] Order ${orderNumber} not found locally, fetching from server...`);
+      // Check if order exists locally but has no items (need to fetch from server)
+      let needsItemSync = false;
+      if (order) {
+        const existingItems = await orderItemsService.getByOrderId(order.id, restaurantId);
+        if (existingItems.length === 0) {
+          console.log(`[BillingScreen] Order ${orderNumber} exists locally but has no items, fetching from server...`);
+          needsItemSync = true;
+        }
+      }
+      
+      // If not found locally OR has no items, try to fetch from server
+      if (!order || needsItemSync) {
+        console.log(`[BillingScreen] Order ${orderNumber} ${!order ? 'not found locally' : 'missing items'}, fetching from server...`);
         try {
           // Fetch orders from server
           const response = await apiService.syncGetData(restaurantId, 'orders');
@@ -235,7 +251,7 @@ const BillingScreen: React.FC<BillingScreenProps> = ({ orderToLoad, onOrderLoade
             serverOrderData = response.data.find((o: any) => o.orderNumber === orderNumber);
             if (serverOrderData) {
               console.log(`[BillingScreen] Found order ${orderNumber} on server, saving to local database...`);
-              // Save the order to local database
+              // Save the order to local database (or update if exists)
               await ordersService.save({
                 id: serverOrderData.id,
                 restaurantId: restaurantId,
@@ -277,8 +293,8 @@ const BillingScreen: React.FC<BillingScreenProps> = ({ orderToLoad, onOrderLoade
                         menuItemId: menuItemId,
                         itemName: item.itemName || item.menuItem?.name || 'Unknown Item',
                         quantity: item.quantity || 1,
-                        unitPrice: item.unitPrice || 0,
-                        totalPrice: item.totalPrice || (item.unitPrice || 0) * (item.quantity || 1),
+                        unitPrice: typeof item.unitPrice === 'object' ? parseFloat(item.unitPrice.toString()) : (item.unitPrice || 0),
+                        totalPrice: typeof item.totalPrice === 'object' ? parseFloat(item.totalPrice.toString()) : (item.totalPrice || (item.unitPrice || 0) * (item.quantity || 1)),
                         kotNumber: item.kotNumber || 1,
                         specialInstructions: item.specialInstructions || undefined,
                       };
@@ -326,7 +342,7 @@ const BillingScreen: React.FC<BillingScreenProps> = ({ orderToLoad, onOrderLoade
       }
 
       // Load order items
-      const orderItems = await orderItemsService.getByOrderId(order.id);
+      const orderItems = await orderItemsService.getByOrderId(order.id, restaurantId);
       if (orderItems.length === 0) {
         Alert.alert('Error', 'No items found in this order');
         if (onOrderLoaded) {
@@ -396,7 +412,7 @@ const BillingScreen: React.FC<BillingScreenProps> = ({ orderToLoad, onOrderLoade
       } else if (order.customerId) {
         // Load from local database
         try {
-          const customer = await customersService.getById(order.customerId);
+          const customer = await customersService.getById(order.customerId, restaurantId);
           if (customer) {
             setCustomerName(customer.name);
             setCustomerMobile(customer.mobile || '');
@@ -705,7 +721,7 @@ const BillingScreen: React.FC<BillingScreenProps> = ({ orderToLoad, onOrderLoade
         // Load customer name
         if (order.customerId) {
           try {
-            const customer = await customersService.getById(order.customerId);
+            const customer = await customersService.getById(order.customerId, restaurantId);
             names[order.id] = customer?.name || 'Unknown Customer';
           } catch {
             names[order.id] = 'Unknown Customer';
@@ -754,6 +770,26 @@ const BillingScreen: React.FC<BillingScreenProps> = ({ orderToLoad, onOrderLoade
       return;
     }
 
+    // Validate Corporate Billing fields
+    if (orderType === 'Corporate Billing') {
+      if (!businessName.trim()) {
+        Alert.alert('Error', 'Please enter business name for corporate billing');
+        return;
+      }
+      if (!businessAddress.trim()) {
+        Alert.alert('Error', 'Please enter business address for corporate billing');
+        return;
+      }
+      if (!corporateGstNumber.trim()) {
+        Alert.alert('Error', 'Please enter GST number for corporate billing');
+        return;
+      }
+      if (!billDate) {
+        Alert.alert('Error', 'Please select a bill date for corporate billing');
+        return;
+      }
+    }
+
     try {
       setCreatingOrder(true);
 
@@ -764,7 +800,7 @@ const BillingScreen: React.FC<BillingScreenProps> = ({ orderToLoad, onOrderLoade
 
       // Check if continuing an existing order
       if (continuingOrderId) {
-        const existingOrder = await ordersService.getById(continuingOrderId);
+        const existingOrder = await ordersService.getById(continuingOrderId, restaurantId);
         if (existingOrder && existingOrder.isOpen) {
           // Continue existing order
           orderId = existingOrder.id;
@@ -773,7 +809,7 @@ const BillingScreen: React.FC<BillingScreenProps> = ({ orderToLoad, onOrderLoade
           isNewOrder = false;
           
           // Update KOT sequence
-          await ordersService.updateKotSequence(orderId, kotNumber);
+          await ordersService.updateKotSequence(orderId, kotNumber, restaurantId);
         } else {
           // Order doesn't exist or is closed, create new order
           continuingOrderId = null;
@@ -851,12 +887,29 @@ const BillingScreen: React.FC<BillingScreenProps> = ({ orderToLoad, onOrderLoade
         const selectedTable = tables.find((t) => t.id === selectedTableId);
         if (selectedTable && selectedTable.status === 'busy') {
           // Check if this table is busy due to the current order being continued
-          if (!continuingOrderId || (continuingOrderId && selectedTableId !== (await ordersService.getById(continuingOrderId))?.tableId)) {
+          if (
+            !continuingOrderId ||
+            (continuingOrderId &&
+              selectedTableId !== (await ordersService.getById(continuingOrderId, restaurantId))?.tableId)
+          ) {
             Alert.alert('Table Busy', `Table ${selectedTable.name} is currently busy. Please select another table.`);
             setCreatingOrder(false);
             return;
           }
         }
+      }
+
+      // Store corporate billing metadata in notes field
+      let notes: string | undefined = undefined;
+      if (orderType === 'Corporate Billing') {
+        const corporateMetadata = {
+          isCorporateBilling: true,
+          businessName: businessName,
+          businessAddress: businessAddress,
+          corporateGstNumber: corporateGstNumber,
+          billDate: billDate
+        };
+        notes = JSON.stringify(corporateMetadata);
       }
 
       // Save or update order
@@ -879,18 +932,19 @@ const BillingScreen: React.FC<BillingScreenProps> = ({ orderToLoad, onOrderLoade
           paymentMethod: paymentMethodValue,
           kotSequence: kotNumber,
           isOpen: true,
+          notes: notes,
         };
         const savedOrder = await ordersService.save(newOrder);
         console.log(`[BILLING] Saved new order: ${savedOrder.orderNumber} (ID: ${savedOrder.id})`);
         
         // Mark table as busy for Dine-In orders
         if (orderType === 'Dine-In' && selectedTableId) {
-          await tablesService.updateStatus(selectedTableId, 'busy');
+          await tablesService.updateStatus(selectedTableId, 'busy', restaurantId);
           console.log(`[BILLING] Marked table ${selectedTableId} as busy`);
         }
       } else {
         // Update existing order totals
-        const existingOrder = await ordersService.getById(orderId);
+        const existingOrder = await ordersService.getById(orderId, restaurantId);
         if (existingOrder) {
           const updatedOrder = {
             ...existingOrder,
@@ -938,7 +992,8 @@ const BillingScreen: React.FC<BillingScreenProps> = ({ orderToLoad, onOrderLoade
           const updatedCustomer = await customersService.updateCredit(
             selectedCustomerId,
             creditAmount,
-            'add'
+            'add',
+            restaurantId
           );
 
           // Create credit transaction record
@@ -1155,6 +1210,19 @@ const BillingScreen: React.FC<BillingScreenProps> = ({ orderToLoad, onOrderLoade
         }
       }
 
+      // Store corporate billing metadata in notes field
+      let notes: string | undefined = undefined;
+      if (orderType === 'Corporate Billing') {
+        const corporateMetadata = {
+          isCorporateBilling: true,
+          businessName: businessName,
+          businessAddress: businessAddress,
+          corporateGstNumber: corporateGstNumber,
+          billDate: billDate
+        };
+        notes = JSON.stringify(corporateMetadata);
+      }
+
       // Save order as completed (no KOT needed)
       const newOrder = {
         id: orderId,
@@ -1173,13 +1241,14 @@ const BillingScreen: React.FC<BillingScreenProps> = ({ orderToLoad, onOrderLoade
         paymentMethod: paymentMode.toLowerCase(),
         kotSequence: 0, // No KOT for quick bill
         isOpen: false, // Order is completed
+        notes: notes,
       };
       const savedOrder = await ordersService.save(newOrder);
       console.log(`[BILLING] Saved quick bill order: ${savedOrder.orderNumber} (ID: ${savedOrder.id})`);
       
       // For Quick Bill with Dine-In, table is immediately freed since order is SERVED
       if (orderType === 'Dine-In' && selectedTableId) {
-        await tablesService.updateStatus(selectedTableId, 'available');
+        await tablesService.updateStatus(selectedTableId, 'available', restaurantId);
         console.log(`[BILLING] Freed table ${selectedTableId} (Quick Bill - immediately SERVED)`);
       }
 
@@ -1204,7 +1273,8 @@ const BillingScreen: React.FC<BillingScreenProps> = ({ orderToLoad, onOrderLoade
           const updatedCustomer = await customersService.updateCredit(
             selectedCustomerId,
             orderTotal,
-            'add'
+            'add',
+            restaurantId
           );
 
           // Create credit transaction record
@@ -1261,6 +1331,16 @@ const BillingScreen: React.FC<BillingScreenProps> = ({ orderToLoad, onOrderLoade
       // Get UPI ID from payment settings for dynamic QR code
       const upiId = paymentSettings?.upiId;
 
+      // Parse corporate billing metadata
+      let corporateMetadata: any = null;
+      if (orderType === 'Corporate Billing' && notes) {
+        try {
+          corporateMetadata = JSON.parse(notes);
+        } catch (e) {
+          // Not JSON, ignore
+        }
+      }
+
       // Prepare bill data matching Web POS format
       const billData: BillData = {
         restaurantName: restaurantInfo.restaurantName,
@@ -1269,16 +1349,24 @@ const BillingScreen: React.FC<BillingScreenProps> = ({ orderToLoad, onOrderLoade
         gstNumber: restaurantInfo.gstNumber,
         fssaiNumber: restaurantInfo.fssaiNumber,
         orderNumber,
-        table: tableNameForBill,
+        table: orderType === 'Corporate Billing' ? undefined : tableNameForBill,
         orderType: orderType,
-        customer: customerNameForBill,
-        timestamp: new Date().toLocaleString('en-IN', {
-          day: '2-digit',
-          month: 'short',
-          year: 'numeric',
-          hour: '2-digit',
-          minute: '2-digit',
-        }),
+        customer: orderType === 'Corporate Billing' ? corporateMetadata?.businessName : customerNameForBill,
+        timestamp: orderType === 'Corporate Billing' && corporateMetadata?.billDate
+          ? new Date(corporateMetadata.billDate).toLocaleString('en-IN', {
+              day: '2-digit',
+              month: 'short',
+              year: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit',
+            })
+          : new Date().toLocaleString('en-IN', {
+              day: '2-digit',
+              month: 'short',
+              year: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit',
+            }),
         items: cart.map((item) => ({
           name: item.itemName,
           quantity: item.quantity,
@@ -1292,6 +1380,11 @@ const BillingScreen: React.FC<BillingScreenProps> = ({ orderToLoad, onOrderLoade
         total: calculateTotals.grandTotal,
         paymentMethod: paymentMode,
         upiId: upiId, // Add UPI ID for dynamic QR code generation
+        // Corporate Billing fields
+        businessName: corporateMetadata?.businessName,
+        businessAddress: corporateMetadata?.businessAddress,
+        corporateGstNumber: corporateMetadata?.corporateGstNumber,
+        billDate: corporateMetadata?.billDate,
       };
 
       // Print bill using Bluetooth printer
@@ -1317,6 +1410,11 @@ const BillingScreen: React.FC<BillingScreenProps> = ({ orderToLoad, onOrderLoade
               setPaymentMode('Cash');
               setOrderType('Counter');
               setContinuingOrderId(null);
+              // Clear Corporate Billing fields
+              setBusinessName('');
+              setBusinessAddress('');
+              setCorporateGstNumber('');
+              setBillDate('');
               // Stay on Menu tab so they can immediately add items for next customer
               setActiveTab('Menu');
             },
@@ -1555,7 +1653,7 @@ const BillingScreen: React.FC<BillingScreenProps> = ({ orderToLoad, onOrderLoade
             </TouchableOpacity>
             {showOrderTypeDropdown && (
               <View style={styles.orderTypeDropdownList}>
-                {(['Counter', 'Dine-In', 'Takeaway', 'Delivery'] as OrderType[]).map((type) => (
+                {(['Counter', 'Dine-In', 'Takeaway', 'Delivery', 'Corporate Billing'] as OrderType[]).map((type) => (
                   <TouchableOpacity
                     key={type}
                     style={[
@@ -1567,6 +1665,19 @@ const BillingScreen: React.FC<BillingScreenProps> = ({ orderToLoad, onOrderLoade
                       setShowOrderTypeDropdown(false);
                       if (type !== 'Dine-In') {
                         setSelectedTableId(null);
+                      }
+                      // Clear Corporate Billing fields when switching away
+                      if (type !== 'Corporate Billing') {
+                        setBusinessName('');
+                        setBusinessAddress('');
+                        setCorporateGstNumber('');
+                        setBillDate('');
+                      }
+                      // Clear regular customer fields when switching to Corporate Billing
+                      if (type === 'Corporate Billing') {
+                        setCustomerName('');
+                        setCustomerMobile('');
+                        setDeliveryAddress('');
                       }
                     }}
                   >
@@ -1666,36 +1777,108 @@ const BillingScreen: React.FC<BillingScreenProps> = ({ orderToLoad, onOrderLoade
             )}
           </View>
 
-          {/* Customer Inputs */}
-          <View style={styles.cartSection}>
-            <Text style={styles.sectionLabel}>Customer Information (Optional)</Text>
-            <TextInput
-              style={styles.cartInput}
-              value={customerName}
-              onChangeText={setCustomerName}
-              placeholder="Customer Name"
-              placeholderTextColor="#94a3b8"
-            />
-            <TextInput
-              style={styles.cartInput}
-              value={customerMobile}
-              onChangeText={setCustomerMobile}
-              placeholder="Customer Mobile Number"
-              placeholderTextColor="#94a3b8"
-              keyboardType="phone-pad"
-            />
-            {orderType === 'Delivery' && (
+          {/* Customer Inputs or Corporate Billing Inputs */}
+          {orderType === 'Corporate Billing' ? (
+            <View style={styles.cartSection}>
+              <Text style={styles.sectionLabel}>Business Information</Text>
+              <TextInput
+                style={styles.cartInput}
+                value={businessName}
+                onChangeText={setBusinessName}
+                placeholder="Business Name *"
+                placeholderTextColor="#94a3b8"
+              />
               <TextInput
                 style={[styles.cartInput, styles.cartTextArea]}
-                value={deliveryAddress}
-                onChangeText={setDeliveryAddress}
-                placeholder="Delivery Address"
+                value={businessAddress}
+                onChangeText={setBusinessAddress}
+                placeholder="Business Address *"
                 placeholderTextColor="#94a3b8"
                 multiline
                 numberOfLines={3}
               />
-            )}
-          </View>
+              <TextInput
+                style={styles.cartInput}
+                value={corporateGstNumber}
+                onChangeText={setCorporateGstNumber}
+                placeholder="GST Number *"
+                placeholderTextColor="#94a3b8"
+              />
+              {/* Date Picker for Past 10 Days */}
+              <View style={{ marginTop: 8 }}>
+                <Text style={[styles.sectionLabel, { marginBottom: 8, fontSize: 14 }]}>Bill Date (Past 10 Days) *</Text>
+                <TouchableOpacity
+                  style={styles.cartInput}
+                  onPress={() => {
+                    // Create date picker options for last 10 days
+                    const today = new Date();
+                    const dates: Array<{ label: string; value: string }> = [];
+                    for (let i = 1; i <= 10; i++) {
+                      const date = new Date(today);
+                      date.setDate(date.getDate() - i);
+                      const dateStr = date.toISOString().split('T')[0];
+                      const formattedDate = date.toLocaleDateString('en-IN', {
+                        day: '2-digit',
+                        month: 'short',
+                        year: 'numeric',
+                      });
+                      dates.push({ label: formattedDate, value: dateStr });
+                    }
+                    
+                    Alert.alert(
+                      'Select Bill Date',
+                      'Choose a date from the past 10 days',
+                      dates.map((date) => ({
+                        text: date.label,
+                        onPress: () => setBillDate(date.value),
+                      })).concat([{ text: 'Cancel', style: 'cancel' }])
+                    );
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <Text style={{ color: billDate ? '#1e293b' : '#94a3b8' }}>
+                    {billDate 
+                      ? new Date(billDate).toLocaleDateString('en-IN', {
+                          day: '2-digit',
+                          month: 'short',
+                          year: 'numeric',
+                        })
+                      : 'Select Bill Date (Past 10 Days) *'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          ) : (
+            <View style={styles.cartSection}>
+              <Text style={styles.sectionLabel}>Customer Information (Optional)</Text>
+              <TextInput
+                style={styles.cartInput}
+                value={customerName}
+                onChangeText={setCustomerName}
+                placeholder="Customer Name"
+                placeholderTextColor="#94a3b8"
+              />
+              <TextInput
+                style={styles.cartInput}
+                value={customerMobile}
+                onChangeText={setCustomerMobile}
+                placeholder="Customer Mobile Number"
+                placeholderTextColor="#94a3b8"
+                keyboardType="phone-pad"
+              />
+              {orderType === 'Delivery' && (
+                <TextInput
+                  style={[styles.cartInput, styles.cartTextArea]}
+                  value={deliveryAddress}
+                  onChangeText={setDeliveryAddress}
+                  placeholder="Delivery Address"
+                  placeholderTextColor="#94a3b8"
+                  multiline
+                  numberOfLines={3}
+                />
+              )}
+            </View>
+          )}
 
           {/* Payment Mode */}
           <View style={styles.cartSection}>
@@ -2090,8 +2273,9 @@ const BillingScreen: React.FC<BillingScreenProps> = ({ orderToLoad, onOrderLoade
   // Get customer name
   const getCustomerName = async (customerId?: string): Promise<string> => {
     if (!customerId) return 'Walk-in Customer';
+    if (!restaurantId) return 'Walk-in Customer';
     try {
-      const customer = await customersService.getById(customerId);
+      const customer = await customersService.getById(customerId, restaurantId);
       return customer?.name || 'Unknown Customer';
     } catch {
       return 'Unknown Customer';
@@ -2122,17 +2306,73 @@ const BillingScreen: React.FC<BillingScreenProps> = ({ orderToLoad, onOrderLoade
   // Handle view order
   const handleViewOrder = async (order: any) => {
     try {
+      if (!restaurantId) {
+        Alert.alert('Error', 'Restaurant not found. Please login again');
+        return;
+      }
+
       // Load actual order items from database
-      const orderItems = await orderItemsService.getByOrderId(order.id);
+      let orderItems = await orderItemsService.getByOrderId(order.id, restaurantId);
+      
+      // If no items found locally, try to fetch from server
+      if (orderItems.length === 0) {
+        console.log(`[BillingScreen] Order ${order.orderNumber} has no items locally, fetching from server...`);
+        try {
+          const response = await apiService.syncGetData(restaurantId, 'orders');
+          if (response.success && response.data) {
+            const serverOrderData = response.data.find((o: any) => o.orderNumber === order.orderNumber || o.id === order.id);
+            if (serverOrderData && serverOrderData.orderItems && Array.isArray(serverOrderData.orderItems) && serverOrderData.orderItems.length > 0) {
+              console.log(`[BillingScreen] Found ${serverOrderData.orderItems.length} order items on server, saving to local database...`);
+              try {
+                // Map and validate order items
+                const orderItemsToSave = serverOrderData.orderItems
+                  .map((item: any) => {
+                    const menuItemId = item.menuItemId || item.menuItem?.id || '';
+                    if (!menuItemId || menuItemId.trim() === '') {
+                      console.warn('[BillingScreen] Skipping order item with invalid menuItemId:', item);
+                      return null;
+                    }
+                    return {
+                      orderId: serverOrderData.id,
+                      menuItemId: menuItemId,
+                      itemName: item.itemName || item.menuItem?.name || 'Unknown Item',
+                      quantity: item.quantity || 1,
+                      unitPrice: typeof item.unitPrice === 'object' ? parseFloat(item.unitPrice.toString()) : (item.unitPrice || 0),
+                      totalPrice: typeof item.totalPrice === 'object' ? parseFloat(item.totalPrice.toString()) : (item.totalPrice || (item.unitPrice || 0) * (item.quantity || 1)),
+                      kotNumber: item.kotNumber || 1,
+                      specialInstructions: item.specialInstructions || undefined,
+                    };
+                  })
+                  .filter((item: any) => item !== null);
+                
+                if (orderItemsToSave.length > 0) {
+                  await orderItemsService.save(orderItemsToSave);
+                  // Reload items from database
+                  orderItems = await orderItemsService.getByOrderId(order.id, restaurantId);
+                  console.log(`[BillingScreen] Successfully saved and loaded ${orderItems.length} order items`);
+                }
+              } catch (error: any) {
+                console.error('[BillingScreen] Error saving order items from server:', error);
+              }
+            }
+          }
+        } catch (error) {
+          console.error('Error fetching order items from server:', error);
+        }
+      }
       
       // Convert OrderItem[] to CartItem[] for display
-      const cartItems: CartItem[] = orderItems.map((item) => ({
-        menuItemId: item.menuItemId,
-        itemName: item.itemName,
-        price: item.unitPrice,
-        quantity: item.quantity,
-        icon: '🍽️', // Default icon
-      }));
+      const cartItems: CartItem[] = orderItems.map((item) => {
+        // Try to find menu item to get icon
+        const menuItem = menuItems.find((mi) => mi.id === item.menuItemId);
+        return {
+          menuItemId: item.menuItemId,
+          itemName: item.itemName,
+          price: item.unitPrice,
+          quantity: item.quantity,
+          icon: menuItem?.icon || '🍽️',
+        };
+      });
       
       setEditingOrderItems(cartItems);
       setSelectedOrder(order);
@@ -2148,8 +2388,13 @@ const BillingScreen: React.FC<BillingScreenProps> = ({ orderToLoad, onOrderLoade
   // Sets continuingOrderId so handlePlaceOrder knows to add to existing order
   const handleContinueOrder = async (order: any) => {
     try {
+      if (!restaurantId) {
+        Alert.alert('Error', 'Restaurant not found. Please login again');
+        return;
+      }
+
       // Check if order is open
-      const orderData = await ordersService.getById(order.id);
+      const orderData = await ordersService.getById(order.id, restaurantId);
       if (!orderData) {
         Alert.alert('Error', 'Order not found');
         return;
@@ -2172,7 +2417,7 @@ const BillingScreen: React.FC<BillingScreenProps> = ({ orderToLoad, onOrderLoade
       // 4. Set customer details if available (matches web POS lines 897-901)
       if (orderData.customerId) {
         try {
-          const customer = await customersService.getById(orderData.customerId);
+          const customer = await customersService.getById(orderData.customerId, restaurantId);
           if (customer) {
             setCustomerName(customer.name);
             setCustomerMobile(customer.mobile || '');
@@ -2238,15 +2483,97 @@ const BillingScreen: React.FC<BillingScreenProps> = ({ orderToLoad, onOrderLoade
    */
   const handlePrintBill = async (order: any) => {
     try {
-      // Load order data with all fields
-      const orderData = await ordersService.getById(order.id);
+      if (!restaurantId) {
+        Alert.alert('Error', 'Restaurant not found. Please login again');
+        return;
+      }
+
+      // IMPORTANT: Before printing the bill, check if there are items in the cart
+      // that belong to this order and haven't been added to the database yet.
+      // This handles the case where user continues an order, adds items to cart,
+      // and then prints the bill directly without placing the order first.
+      if (continuingOrderId === order.id && cart.length > 0) {
+        // There are items in cart that need to be added to the order before printing bill
+        // Add them to the order first (without printing a KOT)
+        const newItems = cart.map(cartItem => ({
+          menuItemId: cartItem.menuItemId,
+          itemName: cartItem.itemName,
+          quantity: cartItem.quantity,
+          unitPrice: cartItem.price,
+          totalPrice: cartItem.price * cartItem.quantity,
+        }));
+
+        if (newItems.length > 0) {
+          // Calculate totals for the new items
+          const newItemsSubtotal = newItems.reduce((sum, item) => sum + item.totalPrice, 0);
+          const discountPercentValue = parseFloat(discountPercent) || 0;
+          const newItemsDiscountAmount = Math.round((newItemsSubtotal * discountPercentValue) / 100);
+          const newItemsDiscountedSubtotal = newItemsSubtotal - newItemsDiscountAmount;
+
+          // Get tax and charges settings
+          const allTaxes = await taxesService.getAll(restaurantId);
+          const enabledTaxes = allTaxes.filter((t) => t.enabled);
+          const totalTaxRate = enabledTaxes.reduce((sum, tax) => sum + tax.rate, 0);
+          const newItemsTax = Math.round(newItemsDiscountedSubtotal * (totalTaxRate / 100));
+
+          // Get additional charges
+          const allCharges = await additionalChargesService.getAll(restaurantId);
+          const enabledCharges = allCharges.filter((c) => c.enabled);
+          const totalChargeRate = enabledCharges.reduce((sum, charge) => sum + charge.percentage, 0);
+          const newItemsAdditionalCharges = Math.round(newItemsDiscountedSubtotal * (totalChargeRate / 100));
+
+          // Service charges (if applicable)
+          const newItemsServiceCharges = orderType === 'Dine-In' ? Math.round(newItemsDiscountedSubtotal * 0.1) : 0; // 10% default, adjust as needed
+          const newItemsDeliveryCharges = 0; // Additional items don't add delivery charges
+
+          const newItemsTotal = newItemsDiscountedSubtotal + newItemsTax + newItemsAdditionalCharges + newItemsServiceCharges + newItemsDeliveryCharges;
+
+          // Get current order to determine next KOT number
+          const existingOrder = await ordersService.getById(order.id, restaurantId);
+          if (existingOrder && existingOrder.isOpen) {
+            const nextKotNumber = existingOrder.kotSequence + 1;
+
+            // Update KOT sequence
+            await ordersService.updateKotSequence(order.id, nextKotNumber, restaurantId);
+
+            // Update order totals
+            const updatedOrder = {
+              ...existingOrder,
+              subtotal: existingOrder.subtotal + newItemsSubtotal,
+              taxAmount: existingOrder.taxAmount + newItemsTax,
+              discountAmount: existingOrder.discountAmount + newItemsDiscountAmount,
+              totalAmount: existingOrder.totalAmount + newItemsTotal,
+              kotSequence: nextKotNumber,
+            };
+            await ordersService.save(updatedOrder);
+
+            // Save order items with KOT number
+            const orderItemsToAdd = newItems.map((item) => ({
+              orderId: order.id,
+              menuItemId: item.menuItemId,
+              itemName: item.itemName,
+              quantity: item.quantity,
+              unitPrice: item.unitPrice,
+              totalPrice: item.totalPrice,
+              kotNumber: nextKotNumber,
+            }));
+            await orderItemsService.save(orderItemsToAdd);
+
+            // Clear cart after adding items
+            setCart([]);
+          }
+        }
+      }
+
+      // Load order data with all fields (refresh to get updated totals)
+      const orderData = await ordersService.getById(order.id, restaurantId);
       if (!orderData) {
         Alert.alert('Error', 'Order not found');
         return;
       }
 
       // Load all order items from all KOTs
-      const orderItems = await orderItemsService.getByOrderId(order.id);
+      const orderItems = await orderItemsService.getByOrderId(order.id, restaurantId);
       
       if (orderItems.length === 0) {
         Alert.alert('Error', 'No items found in this order');
@@ -2264,7 +2591,7 @@ const BillingScreen: React.FC<BillingScreenProps> = ({ orderToLoad, onOrderLoade
         // If not in state, load from database
         if (!customerNameForBill || customerNameForBill === 'Walk-in Customer') {
           try {
-            const customer = await customersService.getById(orderData.customerId);
+            const customer = await customersService.getById(orderData.customerId, restaurantId);
             customerNameForBill = customer?.name;
           } catch {
             // Customer not found, leave undefined
@@ -2293,6 +2620,17 @@ const BillingScreen: React.FC<BillingScreenProps> = ({ orderToLoad, onOrderLoade
       // Get UPI ID from payment settings for dynamic QR code
       const upiId = paymentSettings?.upiId;
 
+      // Parse corporate billing metadata from notes
+      let corporateMetadata: any = null;
+      const isCorporateBilling = orderData.orderType === 'Corporate Billing';
+      if (isCorporateBilling && orderData.notes) {
+        try {
+          corporateMetadata = JSON.parse(orderData.notes);
+        } catch (e) {
+          // Not JSON, ignore
+        }
+      }
+
       // Prepare bill data with all items from all KOTs
       const billData: BillData = {
         restaurantName: restaurantInfo.restaurantName,
@@ -2302,9 +2640,17 @@ const BillingScreen: React.FC<BillingScreenProps> = ({ orderToLoad, onOrderLoade
         fssaiNumber: restaurantInfo.fssaiNumber,
         orderNumber: orderData.orderNumber,
         orderType: orderData.orderType,
-        table: tableName,
-        customer: customerNameForBill,
-        timestamp: formatDateTime(orderData.createdAt),
+        table: isCorporateBilling ? undefined : tableName,
+        customer: isCorporateBilling ? corporateMetadata?.businessName : customerNameForBill,
+        timestamp: isCorporateBilling && corporateMetadata?.billDate
+          ? new Date(corporateMetadata.billDate).toLocaleString('en-IN', {
+              day: '2-digit',
+              month: 'short',
+              year: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit',
+            })
+          : formatDateTime(orderData.createdAt),
         items: orderItems.map((item) => ({
           name: item.itemName,
           quantity: item.quantity,
@@ -2318,6 +2664,11 @@ const BillingScreen: React.FC<BillingScreenProps> = ({ orderToLoad, onOrderLoade
         total: totalAmount,
         paymentMethod: orderData.paymentMethod || 'Cash',
         upiId: upiId, // Add UPI ID for dynamic QR code generation
+        // Corporate Billing fields
+        businessName: corporateMetadata?.businessName,
+        businessAddress: corporateMetadata?.businessAddress,
+        corporateGstNumber: corporateMetadata?.corporateGstNumber,
+        billDate: corporateMetadata?.billDate,
       };
 
       // Print bill using Bluetooth printer
@@ -2345,6 +2696,11 @@ const BillingScreen: React.FC<BillingScreenProps> = ({ orderToLoad, onOrderLoade
   // Handle cancel order
   // Matches Web POS behavior: Cannot cancel SERVED or CANCELLED orders
   const handleCancelOrder = async (order: any) => {
+    if (!restaurantId) {
+      Alert.alert('Error', 'Restaurant not found. Please login again');
+      return;
+    }
+
     const currentStatus = orderStatuses[order.id] || order.paymentStatus || 'PENDING';
     
     // Prevent cancelling SERVED or already CANCELLED orders
@@ -2369,7 +2725,7 @@ const BillingScreen: React.FC<BillingScreenProps> = ({ orderToLoad, onOrderLoade
           onPress: async () => {
             try {
               // Get order to check tableId
-              const orderData = await ordersService.getById(order.id);
+              const orderData = await ordersService.getById(order.id, restaurantId);
               
               // Update order status to CANCELLED
               await databaseService.initialize();
@@ -2383,7 +2739,7 @@ const BillingScreen: React.FC<BillingScreenProps> = ({ orderToLoad, onOrderLoade
 
               // Free the table if it's a Dine-In order
               if (orderData && orderData.tableId && orderData.orderType === 'Dine-In') {
-                await tablesService.updateStatus(orderData.tableId, 'available');
+                await tablesService.updateStatus(orderData.tableId, 'available', restaurantId);
                 console.log(`[BILLING] Freed table ${orderData.tableId} (order CANCELLED)`);
                 // Reload tables to update UI
                 await loadCartData();
@@ -2408,21 +2764,26 @@ const BillingScreen: React.FC<BillingScreenProps> = ({ orderToLoad, onOrderLoade
    */
   const handleUpdateStatus = async (orderId: string, newStatus: string) => {
     try {
+      if (!restaurantId) {
+        Alert.alert('Error', 'Restaurant not found. Please login again');
+        return;
+      }
+
       // Get order to check tableId
-      const order = await ordersService.getById(orderId);
+      const order = await ordersService.getById(orderId, restaurantId);
       if (!order) {
         Alert.alert('Error', 'Order not found');
         return;
       }
 
       // Use ordersService to update status
-      await ordersService.updateStatus(orderId, newStatus);
+      await ordersService.updateStatus(orderId, newStatus, restaurantId);
 
       // Update table status based on order status
       if (order.tableId && order.orderType === 'Dine-In') {
         if (newStatus === 'SERVED' || newStatus === 'CANCELLED') {
           // Free the table when order is SERVED or CANCELLED
-          await tablesService.updateStatus(order.tableId, 'available');
+          await tablesService.updateStatus(order.tableId, 'available', restaurantId);
           console.log(`[BILLING] Freed table ${order.tableId} (order ${newStatus})`);
           // Reload tables to update UI
           await loadCartData();
@@ -2430,7 +2791,7 @@ const BillingScreen: React.FC<BillingScreenProps> = ({ orderToLoad, onOrderLoade
           // Mark table as busy for other statuses (if not already busy)
           const table = tables.find((t) => t.id === order.tableId);
           if (table && table.status !== 'busy') {
-            await tablesService.updateStatus(order.tableId, 'busy');
+            await tablesService.updateStatus(order.tableId, 'busy', restaurantId);
             console.log(`[BILLING] Marked table ${order.tableId} as busy (order ${newStatus})`);
             // Reload tables to update UI
             await loadCartData();

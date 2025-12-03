@@ -104,7 +104,12 @@ const NotificationsScreen: React.FC<NotificationsScreenProps> = ({ onBack }) => 
     if (notification.isRead) return;
 
     try {
-      await notificationsService.markAsRead(notification.id);
+      if (!restaurantId) {
+        Alert.alert('Error', 'Restaurant not found. Please login again');
+        return;
+      }
+
+      await notificationsService.markAsRead(notification.id, restaurantId);
       // Try to mark as read on server (if online)
       try {
         await apiService.markNotificationAsRead(notification.id);
@@ -162,7 +167,12 @@ const NotificationsScreen: React.FC<NotificationsScreenProps> = ({ onBack }) => 
           style: 'destructive',
           onPress: async () => {
             try {
-              await notificationsService.delete(notification.id);
+              if (!restaurantId) {
+                Alert.alert('Error', 'Restaurant not found. Please login again');
+                return;
+              }
+
+              await notificationsService.delete(notification.id, restaurantId);
               await loadNotifications();
             } catch (error) {
               console.error('Error deleting notification:', error);

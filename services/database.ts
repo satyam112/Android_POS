@@ -226,6 +226,7 @@ class DatabaseService {
         paymentMethod TEXT,
         kotSequence INTEGER NOT NULL DEFAULT 1,
         isOpen INTEGER NOT NULL DEFAULT 1,
+        notes TEXT,
         createdAt TEXT NOT NULL,
         lastUpdated TEXT NOT NULL,
         FOREIGN KEY (restaurantId) REFERENCES ${TABLE_NAME}(id),
@@ -234,6 +235,16 @@ class DatabaseService {
       );
     `;
     db.execute(ordersQuery);
+    
+    // Add notes column if it doesn't exist (for backward compatibility)
+    try {
+      db.execute(`ALTER TABLE ${ORDERS_TABLE} ADD COLUMN notes TEXT;`);
+    } catch (error: any) {
+      // Column already exists, ignore error
+      if (!error?.message?.includes('duplicate column')) {
+        console.warn('Error adding notes column (may already exist):', error);
+      }
+    }
 
     // Create order_items table
     const orderItemsQuery = `

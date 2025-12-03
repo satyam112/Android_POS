@@ -89,7 +89,11 @@ const TableManagementScreen: React.FC<TableManagementScreenProps> = ({ onBack })
           style: 'destructive',
           onPress: async () => {
             try {
-              await tablesService.delete(table.id);
+              if (!restaurantId) {
+                Alert.alert('Error', 'Restaurant ID not found');
+                return;
+              }
+              await tablesService.delete(table.id, restaurantId);
               await loadTables();
               Alert.alert('Success', 'Table deleted successfully');
             } catch (error) {
@@ -118,7 +122,7 @@ const TableManagementScreen: React.FC<TableManagementScreenProps> = ({ onBack })
 
       if (editingTable) {
         // Update existing table
-        await tablesService.update(editingTable.id, tableName.trim(), tableCapacity);
+        await tablesService.update(editingTable.id, tableName.trim(), tableCapacity, restaurantId);
         Alert.alert('Success', 'Table updated successfully');
       } else {
         // Add new table
