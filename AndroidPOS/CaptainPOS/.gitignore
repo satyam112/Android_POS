@@ -1,0 +1,21 @@
+# Dependencies
+node_modules/
+
+# Build
+android/app/build
+android/build
+ios/build
+*.apk
+*.aab
+
+# Metro
+.metro-health-check*
+
+# Env
+.env
+.env.local
+*.log
+
+# OS
+.DS_Store
+Thumbs.db

@@ -1,0 +1,1 @@
+C:\dev\Restaurant_POS\AndroidPOS\ZaykaBillPOS\android\app\build\intermediates\cxx\Debug\4h134v47\obj\x86_64

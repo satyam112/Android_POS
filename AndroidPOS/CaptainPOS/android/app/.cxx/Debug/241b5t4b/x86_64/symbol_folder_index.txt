@@ -1,0 +1,1 @@
+C:\dev\Restaurant_POS\AndroidPOS\CaptainPOS\android\app\build\intermediates\cxx\Debug\241b5t4b\obj\x86_64

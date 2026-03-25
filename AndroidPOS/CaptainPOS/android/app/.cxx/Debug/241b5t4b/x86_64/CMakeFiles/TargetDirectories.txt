@@ -1,0 +1,9 @@
+C:/dev/Restaurant_POS/AndroidPOS/CaptainPOS/android/app/.cxx/Debug/241b5t4b/x86_64/CMakeFiles/appmodules.dir
+C:/dev/Restaurant_POS/AndroidPOS/CaptainPOS/android/app/.cxx/Debug/241b5t4b/x86_64/CMakeFiles/edit_cache.dir
+C:/dev/Restaurant_POS/AndroidPOS/CaptainPOS/android/app/.cxx/Debug/241b5t4b/x86_64/CMakeFiles/rebuild_cache.dir
+C:/dev/Restaurant_POS/AndroidPOS/CaptainPOS/android/app/.cxx/Debug/241b5t4b/x86_64/rnasyncstorage_autolinked_build/CMakeFiles/react_codegen_rnasyncstorage.dir
+C:/dev/Restaurant_POS/AndroidPOS/CaptainPOS/android/app/.cxx/Debug/241b5t4b/x86_64/rnasyncstorage_autolinked_build/CMakeFiles/edit_cache.dir
+C:/dev/Restaurant_POS/AndroidPOS/CaptainPOS/android/app/.cxx/Debug/241b5t4b/x86_64/rnasyncstorage_autolinked_build/CMakeFiles/rebuild_cache.dir
+C:/dev/Restaurant_POS/AndroidPOS/CaptainPOS/android/app/.cxx/Debug/241b5t4b/x86_64/safeareacontext_autolinked_build/CMakeFiles/react_codegen_safeareacontext.dir
+C:/dev/Restaurant_POS/AndroidPOS/CaptainPOS/android/app/.cxx/Debug/241b5t4b/x86_64/safeareacontext_autolinked_build/CMakeFiles/edit_cache.dir
+C:/dev/Restaurant_POS/AndroidPOS/CaptainPOS/android/app/.cxx/Debug/241b5t4b/x86_64/safeareacontext_autolinked_build/CMakeFiles/rebuild_cache.dir

@@ -1,0 +1,1 @@
+C:\dev\Restaurant_POS\AndroidPOS\ZaykaBillPOS\android\app\build\intermediates\cxx\RelWithDebInfo\5g264j4r\obj\armeabi-v7a
